@@ -82,38 +82,12 @@ func TestRequest_get_set(t *testing.T) {
 	}
 
 	var (
-		_strPlaceholder   string
-		_slicePlaceholder []int
-
+		_loopNum = 5
 		_name    = "fake-name"
 		_age     = 25
 		_ages    = []int{25, 21, 28}
 		_person  = Person{Name: _name, Age: _age}
 		_persons = []Person{_person, _person}
-
-		_cacheKeyName = "test_cache_key_name"
-		_getName      = func(args ...interface{}) (interface{}, error) {
-			time.Sleep(time.Second * 1) // mock processing of the function
-			return _name, nil
-		}
-
-		_cacheKeyAges = "test_cache_key_ags"
-		_getAges      = func(args ...interface{}) (interface{}, error) {
-			time.Sleep(time.Second * 1) // mock processing of the function
-			return _ages, nil
-		}
-
-		_cacheKeyPerson = "test_cache_key_person"
-		_getPerson      = func(args ...interface{}) (interface{}, error) {
-			time.Sleep(time.Second * 1) // mock processing of the function
-			return _person, nil
-		}
-
-		_cacheKeyPersons = "test_cache_key_persons"
-		_getPersons      = func(args ...interface{}) (interface{}, error) {
-			time.Sleep(time.Second * 1) // mock processing of the function
-			return _persons, nil
-		}
 	)
 
 	// create Client
@@ -122,47 +96,93 @@ func TestRequest_get_set(t *testing.T) {
 	mc := cache.New(1*time.Minute, 10*time.Minute)
 	c := New(rc, mc)
 
-	// when caching 'struct Person' value with memory
-	res, err := c.M().SetCacheKey(_cacheKeyPerson).SetFunc(_getPerson).SetResult(Person{}).Execute()
-	if res.(Person).Name != _name || res.(Person).Age != _age {
-		t.Errorf("Unexpected value of result: got %v, expected %v", res, _person)
-	}
-	if err != nil {
-		t.Errorf("Unexpected err: got %v, expected nil", err)
-	}
-	// execute again
-	t.Log(c.M().SetCacheKey(_cacheKeyPerson).SetFunc(_getPerson).SetResult(Person{}).Execute())
+	t.Run("when caching 'struct Person' value", func(t *testing.T) {
+		var (
+			_cacheKeyPerson = "test_cache_key_person"
+			_getPerson      = func(args ...interface{}) (interface{}, error) {
+				time.Sleep(time.Second * 1) // mock processing of the function
+				return _person, nil
+			}
+		)
 
-	// when caching 'string' value with memory
-	res, err = c.M().SetCacheKey(_cacheKeyName).SetFunc(_getName).SetResult(_strPlaceholder).Execute()
-	if res.(string) != _name {
-		t.Errorf("Unexpected value of result: got %v, expected %v", res, _name)
-	}
-	if err != nil {
-		t.Errorf("Unexpected err: got %v, expected nil", err)
-	}
-	// execute again
-	t.Log(c.M().SetCacheKey(_cacheKeyName).SetFunc(_getName).SetResult(_strPlaceholder).Execute())
+		for _, req := range []*Request{c.M(), c.R()} {
+			for i := 0; i < _loopNum; i++ {
+				res, err := req.SetCacheKey(_cacheKeyPerson).SetFunc(_getPerson).SetResult(Person{}).Execute()
+				if res.(Person).Name != _name || res.(Person).Age != _age {
+					t.Errorf("Unexpected value of result: got %v, expected %v", res, _person)
+				}
+				if err != nil {
+					t.Errorf("Unexpected err: got %v, expected nil", err)
+				}
+			}
+		}
+	})
 
-	// when caching '[]int' value with redis
-	res, err = c.R().SetCacheKey(_cacheKeyAges).SetFunc(_getAges).SetResult(_slicePlaceholder).Execute()
-	if res.([]int)[0] != _ages[0] || res.([]int)[1] != _ages[1] || res.([]int)[2] != _ages[2] {
-		t.Errorf("Unexpected value of result: got %v, expected %v", res, _ages)
-	}
-	if err != nil {
-		t.Errorf("Unexpected err: got %v, expected nil", err)
-	}
-	// execute again
-	t.Log(c.R().SetCacheKey(_cacheKeyAges).SetFunc(_getAges).SetResult(_slicePlaceholder).Execute())
+	t.Run("when caching 'string' value", func(t *testing.T) {
+		var (
+			_strPlaceholder string
+			_cacheKeyName   = "test_cache_key_name"
+			_getName        = func(args ...interface{}) (interface{}, error) {
+				time.Sleep(time.Second * 1) // mock processing of the function
+				return _name, nil
+			}
+		)
 
-	// when caching '[]int' value with redis
-	res, err = c.R().SetCacheKey(_cacheKeyPersons).SetFunc(_getPersons).SetResult([]Person{}).Execute()
-	if res.([]Person)[0] != _person || res.([]Person)[1] != _person {
-		t.Errorf("Unexpected value of result: got %v, expected %v", res, _persons)
-	}
-	if err != nil {
-		t.Errorf("Unexpected err: got %v, expected nil", err)
-	}
-	// execute again
-	t.Log(c.R().SetCacheKey(_cacheKeyPersons).SetFunc(_getPersons).SetResult([]Person{}).Execute())
+		for _, req := range []*Request{c.M(), c.R()} {
+			for i := 0; i < _loopNum; i++ {
+				res, err := req.SetCacheKey(_cacheKeyName).SetFunc(_getName).SetResult(_strPlaceholder).Execute()
+				if res.(string) != _name {
+					t.Errorf("Unexpected value of result: got %v, expected %v", res, _name)
+				}
+				if err != nil {
+					t.Errorf("Unexpected err: got %v, expected nil", err)
+				}
+			}
+		}
+	})
+
+	t.Run("when caching '[]int' value", func(t *testing.T) {
+		var (
+			_slicePlaceholder []int
+			_cacheKeyAges     = "test_cache_key_ags"
+			_getAges          = func(args ...interface{}) (interface{}, error) {
+				time.Sleep(time.Second * 1) // mock processing of the function
+				return _ages, nil
+			}
+		)
+
+		for _, req := range []*Request{c.M(), c.R()} {
+			for i := 0; i < _loopNum; i++ {
+				res, err := req.SetCacheKey(_cacheKeyAges).SetFunc(_getAges).SetResult(_slicePlaceholder).Execute()
+				if res.([]int)[0] != _ages[0] || res.([]int)[1] != _ages[1] || res.([]int)[2] != _ages[2] {
+					t.Errorf("Unexpected value of result: got %v, expected %v", res, _ages)
+				}
+				if err != nil {
+					t.Errorf("Unexpected err: got %v, expected nil", err)
+				}
+			}
+		}
+	})
+
+	t.Run("when caching '[]Person' value", func(t *testing.T) {
+		var (
+			_cacheKeyPersons = "test_cache_key_persons"
+			_getPersons      = func(args ...interface{}) (interface{}, error) {
+				time.Sleep(time.Second * 1) // mock processing of the function
+				return _persons, nil
+			}
+		)
+
+		for _, req := range []*Request{c.M(), c.R()} {
+			for i := 0; i < _loopNum; i++ {
+				res, err := req.SetCacheKey(_cacheKeyPersons).SetFunc(_getPersons).SetResult([]Person{}).Execute()
+				if res.([]Person)[0] != _person || res.([]Person)[1] != _person {
+					t.Errorf("Unexpected value of result: got %v, expected %v", res, _persons)
+				}
+				if err != nil {
+					t.Errorf("Unexpected err: got %v, expected nil", err)
+				}
+			}
+		}
+	})
 }
