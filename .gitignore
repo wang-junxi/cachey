@@ -4,3 +4,4 @@
 *.pprof
 *.o
 *.out
+coverage.txt
