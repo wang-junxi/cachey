@@ -23,7 +23,7 @@
   <a href="#white_check_mark-requirements">Requirements</a> &#xa0; | &#xa0;
   <a href="#checkered_flag-starting">Starting</a> &#xa0; | &#xa0;
   <a href="#memo-license">License</a> &#xa0; | &#xa0;
-  <a href="https://github.com/{{YOUR_GITHUB_USERNAME}}" target="_blank">Author</a>
+  <a href="https://github.com/wang-junxi" target="_blank">Author</a>
 </p>
 
 <br>
@@ -130,8 +130,8 @@ type Person struct {
 }
 
 var (
-  person     = Person{Name: "fake-name", Age: 25}
-  persons    = []Person{person, person}
+  person     = &Person{Name: "fake-name", Age: 25}
+  persons    = []*Person{person, person}
   getPersons = func(args ...interface{}) (interface{}, error) {
     return persons, nil
   }
@@ -140,10 +140,10 @@ var (
 res, err = c.R().
   SetCacheKey("cache_key_persons").
   SetFunc(getPersons).
-  SetResult([]Person{}).
+  SetResult([]*Person{}).
   Execute()
 
-fmt.Println(res.([]Person), err)
+fmt.Println(res.([]*Person), err)
 ```
 
 ## :memo: License ##
