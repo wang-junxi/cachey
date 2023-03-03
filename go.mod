@@ -5,6 +5,7 @@ go 1.18
 require (
 	github.com/alicebob/miniredis/v2 v2.30.0
 	github.com/go-redis/redis/v8 v8.11.5
+	github.com/mitchellh/mapstructure v1.5.0
 	github.com/patrickmn/go-cache v2.1.0+incompatible
 	github.com/rs/zerolog v1.29.0
 )

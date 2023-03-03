@@ -7,6 +7,7 @@ import (
 	"reflect"
 	"time"
 
+	"github.com/mitchellh/mapstructure"
 	"github.com/patrickmn/go-cache"
 	"github.com/rs/zerolog/log"
 )
@@ -46,8 +47,8 @@ func (r *Request) SetFunc(f Func) *Request {
 	return r
 }
 
-func (r *Request) SetResult(result interface{}) *Request {
-	r.result = getPointer(result)
+func (r *Request) SetResultType(result interface{}) *Request {
+	r.result = result
 	return r
 }
 
@@ -108,11 +109,11 @@ func (r *Request) get() error {
 		return fmt.Errorf("cacheKey '%s' not hit with memoryClient", r.cacheKey)
 
 	case RedisClient:
-		bytes, err := r.client.redisClient.Get(context.Background(), r.cacheKey).Bytes()
+		data, err := r.client.redisClient.Get(context.Background(), r.cacheKey).Bytes()
 		if err != nil {
 			return fmt.Errorf("get cacheKey '%s' failed with redisClient, reason: %s", r.cacheKey, err.Error())
 		}
-		return json.Unmarshal(bytes, r.result)
+		return r.unmarshal(data)
 
 	default:
 		return fmt.Errorf("method 'get' is not implemented for Enum_ClientType: %d", r.use)
@@ -137,14 +138,32 @@ func (r *Request) set() error {
 	}
 }
 
-func getPointer(v interface{}) interface{} {
-	vv := valueOf(v)
-	if vv.Kind() == reflect.Ptr {
-		return v
-	}
-	return reflect.New(vv.Type()).Interface()
-}
+func (r *Request) unmarshal(data []byte) error {
+	kind := reflect.ValueOf(r.result).Kind()
+	fmt.Printf(">>>> kind: %v\n", kind) // todo
+	switch kind {
+	case reflect.Pointer:
+		return json.Unmarshal(data, r.result)
 
-func valueOf(i interface{}) reflect.Value {
-	return reflect.ValueOf(i)
+	case reflect.Slice:
+		var meta []interface{}
+		if err := json.Unmarshal(data, &meta); err != nil {
+			return err
+		}
+		return mapstructure.WeakDecode(meta, &r.result)
+
+	case reflect.Struct:
+		meta := new(map[string]interface{})
+		if err := json.Unmarshal(data, meta); err != nil {
+			return err
+		}
+		return mapstructure.WeakDecode(meta, &r.result)
+
+	default:
+		var meta interface{}
+		if err := json.Unmarshal(data, &meta); err != nil {
+			return err
+		}
+		return mapstructure.WeakDecode(meta, &r.result)
+	}
 }

@@ -51,14 +51,14 @@ func TestRequest_SetResult(t *testing.T) {
 
 	// when type of result is 'string'
 	var result string
-	r.SetResult(&result)
+	r.SetResultType(&result)
 	if reflect.ValueOf(r.result).Elem().Type() != reflect.TypeOf(result) {
 		t.Errorf("Unexpected type of result: got %T, expected %T", reflect.ValueOf(r.result).Elem().Type(), reflect.TypeOf(result))
 	}
 
 	// when type of result is 'int'
 	var result2 int
-	r.SetResult(&result2)
+	r.SetResultType(&result2)
 	if reflect.ValueOf(r.result).Elem().Type() != reflect.TypeOf(result2) {
 		t.Errorf("Unexpected type of result: got %T, expected %T", reflect.ValueOf(r.result).Elem().Type(), reflect.TypeOf(result2))
 	}
@@ -69,120 +69,103 @@ func TestRequest_SetResult(t *testing.T) {
 		Age  int
 	}
 	var result3 Person
-	r.SetResult(&result3)
+	r.SetResultType(&result3)
 	if reflect.ValueOf(r.result).Elem().Type() != reflect.TypeOf(result3) {
 		t.Errorf("Unexpected type of result: got %T, expected %T", reflect.ValueOf(r.result).Elem().Type(), reflect.TypeOf(result3))
 	}
 }
 
-func TestRequest_get_set(t *testing.T) {
+func TestRequest_Execute(t *testing.T) {
 	type Person struct {
 		Name string
 		Age  int
 	}
 
 	var (
-		_loopNum = 5
-		_name    = "fake-name"
-		_age     = 25
-		_ages    = []int{25, 21, 28}
-		_person  = Person{Name: _name, Age: _age}
-		_persons = []Person{_person, _person}
+		_loopNum  = 5
+		_cacheKey = "fake-cache-key"
 	)
 
-	// create Client
-	fakeRedis := miniredis.RunT(t)
-	rc := redis.NewClient(&redis.Options{Addr: fakeRedis.Addr()})
-	mc := cache.New(1*time.Minute, 10*time.Minute)
-	c := New(rc, mc)
+	newClient := func() *Client {
+		fakeRedis := miniredis.RunT(t)
+		rc := redis.NewClient(&redis.Options{Addr: fakeRedis.Addr()})
+		mc := cache.New(1*time.Minute, 10*time.Minute)
+		return New(rc, mc)
+	}
 
-	t.Run("when caching 'struct Person' value", func(t *testing.T) {
-		var (
-			_cacheKeyPerson = "test_cache_key_person"
-			_getPerson      = func(args ...interface{}) (interface{}, error) {
-				time.Sleep(time.Second * 1) // mock processing of the function
-				return _person, nil
-			}
-		)
+	tests := []struct {
+		name    string
+		f       Func
+		result  interface{}
+		gotConv func(interface{}) interface{}
+		want    interface{}
+		wantErr bool
+	}{
+		{
+			name:    "when result is 'int' value",
+			f:       func(args ...interface{}) (interface{}, error) { return 25, nil },
+			result:  0,
+			gotConv: func(got interface{}) interface{} { return got.(int) },
+			want:    25,
+			wantErr: false,
+		},
+		{
+			name:    "when result is 'uint' value",
+			f:       func(args ...interface{}) (interface{}, error) { return uint(25), nil },
+			result:  uint(0),
+			gotConv: func(got interface{}) interface{} { return got.(uint) },
+			want:    uint(25),
+			wantErr: false,
+		},
+		{
+			name:    "when result is 'float64' value",
+			f:       func(args ...interface{}) (interface{}, error) { return 1.23, nil },
+			result:  0.0,
+			gotConv: func(got interface{}) interface{} { return got.(float64) },
+			want:    1.23,
+			wantErr: false,
+		},
+		{
+			name:    "when result is 'string' value",
+			f:       func(args ...interface{}) (interface{}, error) { return "fake-str", nil },
+			result:  "",
+			gotConv: func(got interface{}) interface{} { return got.(string) },
+			want:    "fake-str",
+			wantErr: false,
+		},
+		{
+			name:    "when result is 'bool' value",
+			f:       func(args ...interface{}) (interface{}, error) { return true, nil },
+			result:  false,
+			gotConv: func(got interface{}) interface{} { return got.(bool) },
+			want:    true,
+			wantErr: false,
+		},
+		{
+			name:    "when result is '[]int' value",
+			f:       func(args ...interface{}) (interface{}, error) { return []int{1, 2, 3}, nil },
+			result:  []int{},
+			gotConv: func(got interface{}) interface{} { return got.([]int) },
+			want:    []int{1, 2, 3},
+			wantErr: false,
+		},
+	}
 
-		for _, req := range []*Request{c.M(), c.R()} {
-			for i := 0; i < _loopNum; i++ {
-				res, err := req.SetCacheKey(_cacheKeyPerson).SetFunc(_getPerson).SetResult(Person{}).Execute()
-				if res.(Person).Name != _name || res.(Person).Age != _age {
-					t.Errorf("Unexpected value of result: got %v, expected %v", res, _person)
-				}
-				if err != nil {
-					t.Errorf("Unexpected err: got %v, expected nil", err)
-				}
-			}
-		}
-	})
-
-	t.Run("when caching 'string' value", func(t *testing.T) {
-		var (
-			_strPlaceholder string
-			_cacheKeyName   = "test_cache_key_name"
-			_getName        = func(args ...interface{}) (interface{}, error) {
-				time.Sleep(time.Second * 1) // mock processing of the function
-				return _name, nil
-			}
-		)
-
-		for _, req := range []*Request{c.M(), c.R()} {
-			for i := 0; i < _loopNum; i++ {
-				res, err := req.SetCacheKey(_cacheKeyName).SetFunc(_getName).SetResult(_strPlaceholder).Execute()
-				if res.(string) != _name {
-					t.Errorf("Unexpected value of result: got %v, expected %v", res, _name)
-				}
-				if err != nil {
-					t.Errorf("Unexpected err: got %v, expected nil", err)
-				}
-			}
-		}
-	})
-
-	t.Run("when caching '[]int' value", func(t *testing.T) {
-		var (
-			_slicePlaceholder []int
-			_cacheKeyAges     = "test_cache_key_ags"
-			_getAges          = func(args ...interface{}) (interface{}, error) {
-				time.Sleep(time.Second * 1) // mock processing of the function
-				return _ages, nil
-			}
-		)
-
-		for _, req := range []*Request{c.M(), c.R()} {
-			for i := 0; i < _loopNum; i++ {
-				res, err := req.SetCacheKey(_cacheKeyAges).SetFunc(_getAges).SetResult(_slicePlaceholder).Execute()
-				if res.([]int)[0] != _ages[0] || res.([]int)[1] != _ages[1] || res.([]int)[2] != _ages[2] {
-					t.Errorf("Unexpected value of result: got %v, expected %v", res, _ages)
-				}
-				if err != nil {
-					t.Errorf("Unexpected err: got %v, expected nil", err)
-				}
-			}
-		}
-	})
-
-	t.Run("when caching '[]Person' value", func(t *testing.T) {
-		var (
-			_cacheKeyPersons = "test_cache_key_persons"
-			_getPersons      = func(args ...interface{}) (interface{}, error) {
-				time.Sleep(time.Second * 1) // mock processing of the function
-				return _persons, nil
-			}
-		)
-
-		for _, req := range []*Request{c.M(), c.R()} {
-			for i := 0; i < _loopNum; i++ {
-				res, err := req.SetCacheKey(_cacheKeyPersons).SetFunc(_getPersons).SetResult([]Person{}).Execute()
-				if res.([]Person)[0] != _person || res.([]Person)[1] != _person {
-					t.Errorf("Unexpected value of result: got %v, expected %v", res, _persons)
-				}
-				if err != nil {
-					t.Errorf("Unexpected err: got %v, expected nil", err)
+	for _, tt := range tests {
+		t.Run(tt.name, func(t *testing.T) {
+			c := newClient()
+			for _, req := range []*Request{c.M(), c.R()} {
+				for i := 0; i < _loopNum; i++ {
+					got, err := req.SetCacheKey(_cacheKey).SetFunc(tt.f).SetResultType(tt.result).Execute()
+					if (err != nil) != tt.wantErr {
+						t.Errorf("Request.Execute() error = %v, wantErr %v", err, tt.wantErr)
+						return
+					}
+					if !reflect.DeepEqual(tt.gotConv(got), tt.want) {
+						t.Errorf("Request.Execute() = %v, want %v", tt.gotConv(got), tt.want)
+					}
 				}
 			}
-		}
-	})
+		})
+	}
 }
