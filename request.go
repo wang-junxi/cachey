@@ -1,3 +1,5 @@
+// Package cachey provides a simple and flexible way to cache the results of functions
+// using either redis or memory as the backend.
 package cachey
 
 import (
@@ -12,15 +14,19 @@ import (
 	"github.com/rs/zerolog/log"
 )
 
+// ClientType represents the type of cache backend to use for a request.
 type ClientType uint8
 
 const (
-	RedisClient ClientType = iota
-	MemoryClient
+	RedisClient  ClientType = iota // Use redis as the cache backend
+	MemoryClient                   // Use memory as the cache backend
 )
 
+// Func represents a function whose result can be cached by cachey.
 type Func func(args ...interface{}) (interface{}, error)
 
+// Request represents a cachey request that can execute a function and cache its result
+// using either redis or memory as the cache backend.
 type Request struct {
 	client *Client
 	use    ClientType
@@ -32,26 +38,31 @@ type Request struct {
 	result interface{}
 }
 
+// SetCacheKey sets the cache key for this request and returns itself for chaining.
 func (r *Request) SetCacheKey(cacheKey string) *Request {
 	r.cacheKey = cacheKey
 	return r
 }
 
+// SetExpiration sets the expiration time for caching the result of this request and returns itself for chaining.
 func (r *Request) SetExpiration(expiration time.Duration) *Request {
 	r.expiration = expiration
 	return r
 }
 
+// SetFunc sets the function to execute and cache its result for this request and returns itself for chaining.
 func (r *Request) SetFunc(f Func) *Request {
 	r.f = f
 	return r
 }
 
+// SetResultType sets the type of result expected from the function execution for this request and returns itself for chaining.
 func (r *Request) SetResultType(result interface{}) *Request {
 	r.result = result
 	return r
 }
 
+// validate validates if this request is valid and ready to execute. It returns an error if any validation fails.
 func (r *Request) validate() error {
 	if r.use == MemoryClient && r.client.memoryClient == nil {
 		r.client.memoryClient = cache.New(time.Hour, time.Hour)
@@ -68,6 +79,8 @@ func (r *Request) validate() error {
 	return nil
 }
 
+// Execute executes this request by first trying to get the result from the cache with the given key. If it fails, it executes
+// the function and caches its result with the given key and expiration time. It returns the result and an error if any.
 func (r *Request) Execute(args ...interface{}) (interface{}, error) {
 	// validate members of object Request
 	if r.f == nil || r.result == nil {
@@ -99,6 +112,7 @@ func (r *Request) Execute(args ...interface{}) (interface{}, error) {
 	return r.result, nil
 }
 
+// get tries to get the result from the cache with the given key and unmarshal it into the expected result type. It returns an error if it fails.
 func (r *Request) get() error {
 	switch r.use {
 	case MemoryClient:
@@ -120,6 +134,7 @@ func (r *Request) get() error {
 	}
 }
 
+// set tries to marshal the result into a byte slice and set it to the cache with the given key and expiration time. It returns an error if it fails.
 func (r *Request) set() error {
 	switch r.use {
 	case MemoryClient:
@@ -138,6 +153,7 @@ func (r *Request) set() error {
 	}
 }
 
+// unmarshal tries to unmarshal value into result type using mapstructure or json depending on result type kind. It returns an error if it fails.
 func (r *Request) unmarshal(data []byte) error {
 	kind := reflect.ValueOf(r.result).Kind()
 	switch kind {
