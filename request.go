@@ -140,7 +140,6 @@ func (r *Request) set() error {
 
 func (r *Request) unmarshal(data []byte) error {
 	kind := reflect.ValueOf(r.result).Kind()
-	fmt.Printf(">>>> kind: %v\n", kind) // todo
 	switch kind {
 	case reflect.Pointer:
 		return json.Unmarshal(data, r.result)

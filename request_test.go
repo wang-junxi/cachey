@@ -149,6 +149,42 @@ func TestRequest_Execute(t *testing.T) {
 			want:    []int{1, 2, 3},
 			wantErr: false,
 		},
+		{
+			name:    "when result is 'Person' value",
+			f:       func(args ...interface{}) (interface{}, error) { return Person{Name: "fake-name", Age: 25}, nil },
+			result:  Person{},
+			gotConv: func(got interface{}) interface{} { return got.(Person) },
+			want:    Person{Name: "fake-name", Age: 25},
+			wantErr: false,
+		},
+		{
+			name: "when result is '[]Person' value",
+			f: func(args ...interface{}) (interface{}, error) {
+				return []Person{{Name: "fake-name", Age: 25}, {Name: "fake-name", Age: 25}}, nil
+			},
+			result:  []Person{},
+			gotConv: func(got interface{}) interface{} { return got.([]Person) },
+			want:    []Person{{Name: "fake-name", Age: 25}, {Name: "fake-name", Age: 25}},
+			wantErr: false,
+		},
+		{
+			name:    "when result is '*Person' value",
+			f:       func(args ...interface{}) (interface{}, error) { return &Person{Name: "fake-name", Age: 25}, nil },
+			result:  &Person{},
+			gotConv: func(got interface{}) interface{} { return got.(*Person) },
+			want:    &Person{Name: "fake-name", Age: 25},
+			wantErr: false,
+		},
+		{
+			name: "when result is '[]*Person' value",
+			f: func(args ...interface{}) (interface{}, error) {
+				return []*Person{{Name: "fake-name", Age: 25}, {Name: "fake-name", Age: 25}}, nil
+			},
+			result:  []*Person{},
+			gotConv: func(got interface{}) interface{} { return got.([]*Person) },
+			want:    []*Person{{Name: "fake-name", Age: 25}, {Name: "fake-name", Age: 25}},
+			wantErr: false,
+		},
 	}
 
 	for _, tt := range tests {
