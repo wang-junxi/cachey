@@ -13,32 +13,37 @@
   <img alt="Repository size" src="https://img.shields.io/github/repo-size/wang-junxi/cachey?color=56BEB8">
 
   <img alt="License" src="https://img.shields.io/github/license/wang-junxi/cachey?color=56BEB8">
-</p>
 
+<a href="https://goreportcard.com/report/github.com/wang-junxi/cachey"><img src="https://goreportcard.com/badge/github.com/wang-junxi/cachey" alt="Go Report"></a>
+
+<a href="https://pkg.go.dev/github.com/wang-junxi/cachey"><img src="https://pkg.go.dev/badge/github.com/wang-junxi/cachey.svg" alt="Go Reference"></a>
+
+</p>
 
 <p align="center">
   <a href="#dart-about">About</a> &#xa0; | &#xa0; 
   <a href="#sparkles-features">Features</a> &#xa0; | &#xa0;
   <a href="#rocket-technologies">Technologies</a> &#xa0; | &#xa0;
   <a href="#white_check_mark-requirements">Requirements</a> &#xa0; | &#xa0;
-  <a href="#checkered_flag-starting">Starting</a> &#xa0; | &#xa0;
+  <a href="#checkered_flag-install">Install</a> &#xa0; | &#xa0;
+  <a href="#checkered_flag-use-example">Use Example</a> &#xa0; | &#xa0;
   <a href="#memo-license">License</a> &#xa0; | &#xa0;
   <a href="https://github.com/wang-junxi" target="_blank">Author</a>
 </p>
 
 <br>
 
-## :dart: About ##
+## :dart: About
 
 Cachey is a simple, easy-to-use caching of function values based on redis or memory in Go.
 
-## :sparkles: Features ##
+## :sparkles: Features
 
 :heavy_check_mark: Simple and chainable methods for settings and execute;\
 :heavy_check_mark: Predefined result structure to handle function return value;\
 :heavy_check_mark: Auto unmarshal result;
 
-## :rocket: Technologies ##
+## :rocket: Technologies
 
 The following tools were used in this project:
 
@@ -46,19 +51,20 @@ The following tools were used in this project:
 - [go-cache](https://github.com/patrickmn/go-cache)
 - [zerolog](https://github.com/rs/zerolog)
 
-## :white_check_mark: Requirements ##
+## :white_check_mark: Requirements
 
 Before starting :checkered_flag:, you need to have [Git](https://git-scm.com) and [Go](https://go.dev/doc/install) installed.
 
-## :checkered_flag: Install ##
+## :checkered_flag: Install
 
 ```bash
 go get -u github.com/wang-junxi/cachey
 ```
 
-## :checkered_flag: Use Example ##
+## :checkered_flag: Use Example
 
-Using memory to cache function values 
+Using memory to cache function values
+
 ```golang
 mc := cache.New(time.Hour, time.Hour)
 c := New(nil, mc)
@@ -102,7 +108,8 @@ res, err = c.M().
 fmt.Println(res.(Person), err)
 ```
 
-Using redis to cache function values 
+Using redis to cache function values
+
 ```golang
 rc := redis.NewClient(&redis.Options{Addr: "localhost:6379"})
 c := New(rc, nil)
@@ -146,7 +153,7 @@ res, err = c.R().
 fmt.Println(res.([]*Person), err)
 ```
 
-## :memo: License ##
+## :memo: License
 
 This project is under license from MIT. For more details, see the [LICENSE](LICENSE.md) file.
 
