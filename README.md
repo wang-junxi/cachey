@@ -5,20 +5,12 @@
 
 <h1 align="center">Cachey</h1>
 
-<p align="center">
-  <img alt="Github top language" src="https://img.shields.io/github/languages/top/wang-junxi/cachey?color=56BEB8">
-
-  <img alt="Github language count" src="https://img.shields.io/github/languages/count/wang-junxi/cachey?color=56BEB8">
-
-  <img alt="Repository size" src="https://img.shields.io/github/repo-size/wang-junxi/cachey?color=56BEB8">
-
-  <img alt="License" src="https://img.shields.io/github/license/wang-junxi/cachey?color=56BEB8">
-
-<a href="https://goreportcard.com/report/github.com/wang-junxi/cachey"><img src="https://goreportcard.com/badge/github.com/wang-junxi/cachey" alt="Go Report"></a>
-
-<a href="https://pkg.go.dev/github.com/wang-junxi/cachey"><img src="https://pkg.go.dev/badge/github.com/wang-junxi/cachey.svg" alt="Go Reference"></a>
-
-</p>
+[![Github top language](https://img.shields.io/github/languages/top/wang-junxi/cachey?color=56BEB8)]
+[![Github language count](https://img.shields.io/github/languages/count/wang-junxi/cachey?color=56BEB8)]
+[![Repository size](https://img.shields.io/github/repo-size/wang-junxi/cachey?color=56BEB8)]
+[![License](https://img.shields.io/github/license/wang-junxi/cachey?color=56BEB8)]
+[![Go Report](https://goreportcard.com/badge/github.com/wang-junxi/cachey)](https://goreportcard.com/report/github.com/wang-junxi/cachey)
+[![Go Reference](https://pkg.go.dev/badge/github.com/wang-junxi/cachey.svg)](https://pkg.go.dev/github.com/wang-junxi/cachey)
 
 <p align="center">
   <a href="#dart-about">About</a> &#xa0; | &#xa0; 
