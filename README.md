@@ -67,8 +67,11 @@ Using memory to cache function values
 
 ```golang
 mc := cache.New(time.Hour, time.Hour)
-c := New(nil, mc)
-// c := New(nil, nil) // Or just use memory cache with default config
+c := New(nil, mc).EnableDebug()
+/*
+  // Or just use memory cache with default config
+  c := New(nil, nil)
+*/
 
 // when caching 'string' value with memory
 var (
@@ -152,6 +155,8 @@ res, err = c.R().
 
 fmt.Println(res.([]*Person), err)
 ```
+
+For more details, see the 'TestRequest_Execute' in [request_test.go](request_test.go) file.
 
 ## :memo: License
 

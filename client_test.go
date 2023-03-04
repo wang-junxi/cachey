@@ -5,6 +5,7 @@ import (
 
 	"github.com/go-redis/redis/v8"
 	"github.com/patrickmn/go-cache"
+	"github.com/rs/zerolog"
 )
 
 func TestClient(t *testing.T) {
@@ -27,5 +28,11 @@ func TestClient(t *testing.T) {
 	r = c.R()
 	if r.use != RedisClient {
 		t.Errorf("Expected client type RedisClient; got %d", r.use)
+	}
+
+	// test method client.EnableDebug
+	c = c.EnableDebug()
+	if c.logger.GetLevel() != zerolog.DebugLevel {
+		t.Errorf("Expected log level 'Warn'; got %d", c.logger.GetLevel())
 	}
 }

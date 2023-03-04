@@ -1,6 +1,7 @@
 package cachey
 
 import (
+	"fmt"
 	"reflect"
 	"testing"
 	"time"
@@ -84,77 +85,114 @@ func TestRequest_Execute(t *testing.T) {
 	var (
 		_loopNum  = 5
 		_cacheKey = "fake-cache-key"
+		_expire   = time.Minute
 	)
 
 	newClient := func() *Client {
 		fakeRedis := miniredis.RunT(t)
 		rc := redis.NewClient(&redis.Options{Addr: fakeRedis.Addr()})
 		mc := cache.New(1*time.Minute, 10*time.Minute)
-		return New(rc, mc)
+		return New(rc, mc).EnableDebug()
 	}
 
+	t.Run("when CacheKey is not set", func(t *testing.T) {
+		f := func(args ...interface{}) (interface{}, error) { return 25, nil }
+		_, err := newClient().M().SetFunc(f).SetResultType(0).Execute()
+		if err != nil {
+			t.Errorf("Execute() error = %v, wantErr %v", err, nil)
+		}
+	})
+
+	defaultGotAssert := func(got interface{}) bool { return true }
+
 	tests := []struct {
-		name    string
-		f       Func
-		result  interface{}
-		gotConv func(interface{}) interface{}
-		want    interface{}
-		wantErr bool
+		name      string
+		f         Func
+		result    interface{}
+		gotAssert func(got interface{}) bool
+		wantErr   bool
 	}{
 		{
-			name:    "when result is 'int' value",
-			f:       func(args ...interface{}) (interface{}, error) { return 25, nil },
-			result:  0,
-			gotConv: func(got interface{}) interface{} { return got.(int) },
-			want:    25,
+			name:      "when Func is not set",
+			f:         nil,
+			result:    0,
+			gotAssert: defaultGotAssert,
+			wantErr:   true, // you must set Func and ResultType, wantErr false
+		},
+		{
+			name:      "when ResultType is not set",
+			f:         func(args ...interface{}) (interface{}, error) { return 25, nil },
+			result:    nil,
+			gotAssert: defaultGotAssert,
+			wantErr:   true, // you must set Func and ResultType, wantErr false
+		},
+		{
+			name:      "when Func returns error",
+			f:         func(args ...interface{}) (interface{}, error) { return nil, fmt.Errorf("fake-error") },
+			result:    0,
+			gotAssert: defaultGotAssert,
+			wantErr:   true,
+		},
+		{
+			name:      "when result is 'int' value",
+			f:         func(args ...interface{}) (interface{}, error) { return 25, nil },
+			result:    0,
+			gotAssert: func(got interface{}) bool { return got.(int) == 25 },
+			wantErr:   false,
+		},
+		{
+			name:      "when result is 'uint' value",
+			f:         func(args ...interface{}) (interface{}, error) { return uint(25), nil },
+			result:    uint(0),
+			gotAssert: func(got interface{}) bool { return got.(uint) == 25 },
+			wantErr:   false,
+		},
+		{
+			name:      "when result is 'float64' value",
+			f:         func(args ...interface{}) (interface{}, error) { return 1.23, nil },
+			result:    0.0,
+			gotAssert: func(got interface{}) bool { return got.(float64) == 1.23 },
+			wantErr:   false,
+		},
+		{
+			name:      "when result is 'string' value",
+			f:         func(args ...interface{}) (interface{}, error) { return "fake-str", nil },
+			result:    "",
+			gotAssert: func(got interface{}) bool { return got.(string) == "fake-str" },
+			wantErr:   false,
+		},
+		{
+			name:      "when result is 'bool' value",
+			f:         func(args ...interface{}) (interface{}, error) { return true, nil },
+			result:    false,
+			gotAssert: func(got interface{}) bool { return got.(bool) == true },
+			wantErr:   false,
+		},
+		{
+			name:   "when result is '[]int' value",
+			f:      func(args ...interface{}) (interface{}, error) { return []int{1, 2, 3}, nil },
+			result: []int{},
+			gotAssert: func(got interface{}) bool {
+				return got.([]int)[0] == 1 && got.([]int)[1] == 2 && got.([]int)[2] == 3
+			},
 			wantErr: false,
 		},
 		{
-			name:    "when result is 'uint' value",
-			f:       func(args ...interface{}) (interface{}, error) { return uint(25), nil },
-			result:  uint(0),
-			gotConv: func(got interface{}) interface{} { return got.(uint) },
-			want:    uint(25),
+			name:   "when result is 'map[string]int' value",
+			f:      func(args ...interface{}) (interface{}, error) { return map[string]int{"fake-name": 25}, nil },
+			result: map[string]int{},
+			gotAssert: func(got interface{}) bool {
+				return got.(map[string]int)["fake-name"] == 25
+			},
 			wantErr: false,
 		},
 		{
-			name:    "when result is 'float64' value",
-			f:       func(args ...interface{}) (interface{}, error) { return 1.23, nil },
-			result:  0.0,
-			gotConv: func(got interface{}) interface{} { return got.(float64) },
-			want:    1.23,
-			wantErr: false,
-		},
-		{
-			name:    "when result is 'string' value",
-			f:       func(args ...interface{}) (interface{}, error) { return "fake-str", nil },
-			result:  "",
-			gotConv: func(got interface{}) interface{} { return got.(string) },
-			want:    "fake-str",
-			wantErr: false,
-		},
-		{
-			name:    "when result is 'bool' value",
-			f:       func(args ...interface{}) (interface{}, error) { return true, nil },
-			result:  false,
-			gotConv: func(got interface{}) interface{} { return got.(bool) },
-			want:    true,
-			wantErr: false,
-		},
-		{
-			name:    "when result is '[]int' value",
-			f:       func(args ...interface{}) (interface{}, error) { return []int{1, 2, 3}, nil },
-			result:  []int{},
-			gotConv: func(got interface{}) interface{} { return got.([]int) },
-			want:    []int{1, 2, 3},
-			wantErr: false,
-		},
-		{
-			name:    "when result is 'Person' value",
-			f:       func(args ...interface{}) (interface{}, error) { return Person{Name: "fake-name", Age: 25}, nil },
-			result:  Person{},
-			gotConv: func(got interface{}) interface{} { return got.(Person) },
-			want:    Person{Name: "fake-name", Age: 25},
+			name:   "when result is 'Person' value",
+			f:      func(args ...interface{}) (interface{}, error) { return Person{Name: "fake-name", Age: 25}, nil },
+			result: Person{},
+			gotAssert: func(got interface{}) bool {
+				return got.(Person).Name == "fake-name" && got.(Person).Age == 25
+			},
 			wantErr: false,
 		},
 		{
@@ -162,17 +200,30 @@ func TestRequest_Execute(t *testing.T) {
 			f: func(args ...interface{}) (interface{}, error) {
 				return []Person{{Name: "fake-name", Age: 25}, {Name: "fake-name", Age: 25}}, nil
 			},
-			result:  []Person{},
-			gotConv: func(got interface{}) interface{} { return got.([]Person) },
-			want:    []Person{{Name: "fake-name", Age: 25}, {Name: "fake-name", Age: 25}},
+			result: []Person{},
+			gotAssert: func(got interface{}) bool {
+				return got.([]Person)[0].Name == "fake-name" && got.([]Person)[1].Age == 25
+			},
 			wantErr: false,
 		},
 		{
-			name:    "when result is '*Person' value",
-			f:       func(args ...interface{}) (interface{}, error) { return &Person{Name: "fake-name", Age: 25}, nil },
-			result:  &Person{},
-			gotConv: func(got interface{}) interface{} { return got.(*Person) },
-			want:    &Person{Name: "fake-name", Age: 25},
+			name: "when result is 'map[string]Person' value",
+			f: func(args ...interface{}) (interface{}, error) {
+				return map[string]Person{"person1": {Name: "fake-name", Age: 25}, "person2": {Name: "fake-name", Age: 25}}, nil
+			},
+			result: map[string]Person{},
+			gotAssert: func(got interface{}) bool {
+				return got.(map[string]Person)["person1"].Name == "fake-name" && got.(map[string]Person)["person2"].Age == 25
+			},
+			wantErr: false,
+		},
+		{
+			name:   "when result is '*Person' value",
+			f:      func(args ...interface{}) (interface{}, error) { return &Person{Name: "fake-name", Age: 25}, nil },
+			result: &Person{},
+			gotAssert: func(got interface{}) bool {
+				return got.(*Person).Name == "fake-name" && got.(*Person).Age == 25
+			},
 			wantErr: false,
 		},
 		{
@@ -180,9 +231,21 @@ func TestRequest_Execute(t *testing.T) {
 			f: func(args ...interface{}) (interface{}, error) {
 				return []*Person{{Name: "fake-name", Age: 25}, {Name: "fake-name", Age: 25}}, nil
 			},
-			result:  []*Person{},
-			gotConv: func(got interface{}) interface{} { return got.([]*Person) },
-			want:    []*Person{{Name: "fake-name", Age: 25}, {Name: "fake-name", Age: 25}},
+			result: []*Person{},
+			gotAssert: func(got interface{}) bool {
+				return got.([]*Person)[0].Name == "fake-name" && got.([]*Person)[1].Age == 25
+			},
+			wantErr: false,
+		},
+		{
+			name: "when result is 'map[string]*Person' value",
+			f: func(args ...interface{}) (interface{}, error) {
+				return map[string]*Person{"person1": {Name: "fake-name", Age: 25}, "person2": {Name: "fake-name", Age: 25}}, nil
+			},
+			result: map[string]*Person{},
+			gotAssert: func(got interface{}) bool {
+				return got.(map[string]*Person)["person1"].Name == "fake-name" && got.(map[string]*Person)["person2"].Age == 25
+			},
 			wantErr: false,
 		},
 	}
@@ -192,13 +255,13 @@ func TestRequest_Execute(t *testing.T) {
 			c := newClient()
 			for _, req := range []*Request{c.M(), c.R()} {
 				for i := 0; i < _loopNum; i++ {
-					got, err := req.SetCacheKey(_cacheKey).SetFunc(tt.f).SetResultType(tt.result).Execute()
+					got, err := req.SetCacheKey(_cacheKey).SetExpiration(_expire).SetFunc(tt.f).SetResultType(tt.result).Execute()
 					if (err != nil) != tt.wantErr {
 						t.Errorf("Request.Execute() error = %v, wantErr %v", err, tt.wantErr)
 						return
 					}
-					if !reflect.DeepEqual(tt.gotConv(got), tt.want) {
-						t.Errorf("Request.Execute() = %v, want %v", tt.gotConv(got), tt.want)
+					if !tt.gotAssert(got) {
+						t.Errorf("Request.Execute() got is not expected, got %v", got)
 					}
 				}
 			}

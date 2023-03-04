@@ -11,7 +11,6 @@ import (
 
 	"github.com/mitchellh/mapstructure"
 	"github.com/patrickmn/go-cache"
-	"github.com/rs/zerolog/log"
 )
 
 // ClientType represents the type of cache backend to use for a request.
@@ -84,16 +83,16 @@ func (r *Request) validate() error {
 func (r *Request) Execute(args ...interface{}) (interface{}, error) {
 	// validate members of object Request
 	if r.f == nil || r.result == nil {
-		return r.result, fmt.Errorf("Func or result is not set")
+		return r.result, fmt.Errorf("you must set Func and ResultType")
 	}
 
 	if err := r.validate(); err != nil {
-		log.Warn().Msgf("cachey is not in effect. reason:%s.", err.Error())
+		r.client.logger.Warn().Msgf("cachey is not in effect. reason: %s.", err.Error())
 	}
 
 	// try to get val from cache with cacheKey
 	if err := r.get(); err != nil {
-		log.Warn().Msg(err.Error())
+		r.client.logger.Debug().Msg(err.Error())
 	} else {
 		return r.result, nil
 	}
@@ -107,7 +106,7 @@ func (r *Request) Execute(args ...interface{}) (interface{}, error) {
 
 	// try to set val to cache with cacheKey
 	if err := r.set(); err != nil {
-		log.Warn().Msg(err.Error())
+		r.client.logger.Debug().Msg(err.Error())
 	}
 	return r.result, nil
 }
@@ -115,13 +114,6 @@ func (r *Request) Execute(args ...interface{}) (interface{}, error) {
 // get tries to get the result from the cache with the given key and unmarshal it into the expected result type. It returns an error if it fails.
 func (r *Request) get() error {
 	switch r.use {
-	case MemoryClient:
-		if val, hit := r.client.memoryClient.Get(r.cacheKey); hit {
-			r.result = val
-			return nil
-		}
-		return fmt.Errorf("cacheKey '%s' not hit with memoryClient", r.cacheKey)
-
 	case RedisClient:
 		data, err := r.client.redisClient.Get(context.Background(), r.cacheKey).Bytes()
 		if err != nil {
@@ -130,17 +122,17 @@ func (r *Request) get() error {
 		return r.unmarshal(data)
 
 	default:
-		return fmt.Errorf("method 'get' is not implemented for Enum_ClientType: %d", r.use)
+		if val, hit := r.client.memoryClient.Get(r.cacheKey); hit {
+			r.result = val
+			return nil
+		}
+		return fmt.Errorf("cacheKey '%s' not hit with memoryClient", r.cacheKey)
 	}
 }
 
 // set tries to marshal the result into a byte slice and set it to the cache with the given key and expiration time. It returns an error if it fails.
 func (r *Request) set() error {
 	switch r.use {
-	case MemoryClient:
-		r.client.memoryClient.Set(r.cacheKey, r.result, r.expiration)
-		return nil
-
 	case RedisClient:
 		if bytes, err := json.Marshal(r.result); err != nil {
 			return fmt.Errorf("marshal result (%v) to cacheKey '%s' failed with redisClient, reason: %s", r.result, r.cacheKey, err.Error())
@@ -149,7 +141,8 @@ func (r *Request) set() error {
 		}
 
 	default:
-		return fmt.Errorf("method 'set' is not implemented for Enum_ClientType: %d", r.use)
+		r.client.memoryClient.Set(r.cacheKey, r.result, r.expiration)
+		return nil
 	}
 }
 
